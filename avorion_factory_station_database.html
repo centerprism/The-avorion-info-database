@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Avorion — Factory & Station Database</title>
+<style>
+:root{color-scheme:dark;--bg:#0a1019;--panel:#121c2a;--panel2:#182638;--line:#2b4057;--text:#e8f0fa;--muted:#9fb2c8;--accent:#63d4ff;--gold:#ffc96b;--green:#7be0ad}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#14263a 0,#0a1019 55%);font:15px/1.5 system-ui,Segoe UI,Arial;color:var(--text)}
+header{padding:28px max(18px,calc((100vw - 1250px)/2));border-bottom:1px solid var(--line);background:#0a1019dd}
+h1{margin:0;font-size:clamp(26px,4vw,42px);letter-spacing:.02em}header p{color:var(--muted);margin:8px 0 0;max-width:850px}
+main{max-width:1250px;margin:auto;padding:22px 18px 50px}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.stat,.panel,.item{border:1px solid var(--line);background:linear-gradient(145deg,var(--panel),#101925);border-radius:12px}
+.stat{padding:14px 16px}.stat strong{display:block;font-size:25px;color:var(--accent)}.stat span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.panel{padding:16px;margin-bottom:18px}.controls{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+input,select,button{font:inherit;color:var(--text);background:#0b1420;border:1px solid var(--line);border-radius:8px;padding:11px 12px;min-width:0}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}.tabs button{cursor:pointer}.tabs button.active{background:#16405a;border-color:var(--accent);color:#fff}
+.sectionhead{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin:22px 0 12px}.sectionhead h2{margin:0;font-size:21px}.muted{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.item{padding:15px;cursor:pointer;transition:border-color .15s,transform .15s}.item:hover{border-color:var(--accent);transform:translateY(-2px)}.item h3{margin:7px 0 6px;font-size:17px}.item p{margin:5px 0;color:var(--muted);font-size:13px}
+.tag{display:inline-block;border:1px solid #34506b;color:#a9dfff;background:#102538;border-radius:5px;padding:2px 7px;font-size:11px;margin:0 4px 3px 0}.tag.gold{color:var(--gold);border-color:#6e5731;background:#2b2112}.tag.green{color:var(--green);border-color:#2d674e;background:#10271e}
+.detail{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:18px;z-index:5}.detail.open{display:flex}.dialog{max-width:760px;width:100%;max-height:90vh;overflow:auto;background:#101b29;border:1px solid #42617e;border-radius:14px;padding:22px;box-shadow:0 25px 80px #000a}.dialoghead{display:flex;justify-content:space-between;gap:15px;align-items:start}.dialog h2{margin:0}.close{cursor:pointer}.dialog h3{margin:18px 0 6px;color:var(--accent)}.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{border:1px solid var(--line);background:#172638;border-radius:6px;padding:5px 8px;font-size:13px}
+.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top}th{color:var(--accent);background:#101a27;position:sticky;top:0}
+.empty{padding:30px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}.footer{margin-top:28px;color:var(--muted);font-size:12px}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.controls{grid-template-columns:1fr 1fr}.controls input{grid-column:1/-1}}
+@media(max-width:560px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}.controls{grid-template-columns:1fr}.controls input{grid-column:auto}.sectionhead{align-items:start;flex-direction:column}}
+</style>
+</head>
+<body>
+<header><h1>AVORION <span style="color:var(--accent)">INDUSTRIAL DATABASE</span></h1>
+<p>Interactive reference for factories, mines, farms, materials and utility stations. Search goods, inspect input/output recipes, and explore production dependencies. Community-wiki-based reference; recipes and availability may vary by game version or station variant.</p></header>
+<main>
+<div class="stats">
+ <div class="stat"><strong id="totalCount">0</strong><span>Database entries</span></div>
+ <div class="stat"><strong id="factoryCount">0</strong><span>Factories & farms</span></div>
+ <div class="stat"><strong id="mineCount">0</strong><span>Mines & extractors</span></div>
+ <div class="stat"><strong id="goodsCount">0</strong><span>Tracked goods</span></div>
+</div>
+<section class="panel">
+ <div class="controls">
+  <input id="search" type="search" placeholder="Search station, material, product or ingredient…">
+  <select id="category"><option value="all">All station categories</option><option>Basic</option><option>Low Tech</option><option>Advanced</option><option>High Tech</option><option>Mine / Resource</option><option>Farm / Ranch</option><option>Service / Other</option></select>
+  <select id="sort"><option value="name">Sort: Name A–Z</option><option value="category">Sort: Category</option><option value="output">Sort: Product name</option></select>
+ </div>
+ <div class="tabs" id="tabs">
+  <button class="active" data-mode="stations">Stations & Factories</button><button data-mode="goods">Materials & Goods</button><button data-mode="chains">Production Chains</button>
+ </div>
+</section>
+<div class="sectionhead"><h2 id="resultsTitle">Station directory</h2><span id="resultCount" class="muted"></span></div>
+<div id="results" class="grid"></div>
+<div class="footer">Data reference: Avorion community wiki factory, station, farm and production-capacity pages. This is a fan-made browser reference, not an official game tool. Some entries are station families or variants; verify exact recipes in your game.</div>
+</main>
+<div class="detail" id="detail" role="dialog" aria-modal="true" aria-labelledby="detailTitle"><div class="dialog">
+ <div class="dialoghead"><div><div id="detailTags"></div><h2 id="detailTitle"></h2></div><button class="close" id="close">✕ Close</button></div>
+ <p id="detailDesc" class="muted"></p><h3>Inputs / required materials</h3><div id="detailInputs" class="chips"></div><h3>Outputs / products</h3><div id="detailOutputs" class="chips"></div><h3>Production-chain links</h3><div id="detailLinks"></div>
+ </div></div>
+<script>
+const D = [
+{n:"Accelerator Factory",c:"High Tech",i:["Turbine","Plasma Cell","Fusion Generator","Energy Tube","High Pressure Tube","Conductor","Gauss Rail"],o:["Neutron Accelerator","Proton Accelerator","Electron Accelerator"],d:"Advanced end-tier industrial components.",cost:"Very high"},
+{n:"Aluminium Mine",c:"Mine / Resource",i:[],o:["Aluminum"],d:"Extracts aluminum ore/material."},
+{n:"Ammunition Factory",c:"Advanced",i:["Lead","Aluminum","Steel","Adhesive","Energy Cell"],o:["Ammunition S","Ammunition M","Ammunition L"],d:"Produces ammunition in several sizes."},
+{n:"Ammunition Factory (chemical)",c:"Advanced",i:["Steel","Chemicals","Paint"],o:["Ammunition","Toxic Waste"],d:"Alternate ammunition recipe; toxic waste is a by-product."},
+{n:"Antigrav Generator Factory",c:"High Tech",i:["Power Unit","Processor","Energy Cell"],o:["Antigrav Generator"],d:"High-tech antigravity component."},
+{n:"Antigrav Unit Factory",c:"High Tech",i:["Power Unit","Processor","Energy Cell"],o:["Antigrav Unit"],d:"Produces antigravity units."},
+{n:"Biotope",c:"Service / Other",i:["Food","Water","Cattle"],o:["Habitation services"],d:"Habitation and life-support station."},
+{n:"Body Armor Factory",c:"High Tech",i:["Steel","Plastic","Tools","Chemicals"],o:["Body Armor"],d:"Produces body armor trade goods."},
+{n:"Book Factory",c:"Low Tech",i:["Paper","Plastic"],o:["Books"],d:"Produces books."},
+{n:"Brewery",c:"Low Tech",i:["Wheat","Water"],o:["Beer"],d:"Produces beer."},
+{n:"Carbon Extractor",c:"Mine / Resource",i:[],o:["Carbon"],d:"Extracts carbon."},
+{n:"Casino",c:"Service / Other",i:[],o:["Casino services"],d:"Entertainment station."},
+{n:"Cattle Ranch",c:"Farm / Ranch",i:[],o:["Cattle","Bio Gas"],d:"Produces cattle and biogas."},
+{n:"Chemical Factory",c:"Low Tech",i:["Water","Nitrogen","Hydrogen","Oxygen","Bio Gas","Carbon","Energy Cell"],o:["Chemicals","Adhesive","Coolant","Solvent","Acid"],d:"Multi-output chemical processing plant."},
+{n:"Clothes Factory",c:"Low Tech",i:["Fabric","Dye"],o:["Clothes"],d:"Produces clothes."},
+{n:"Coal Mine",c:"Mine / Resource",i:[],o:["Coal"],d:"Extracts coal."},
+{n:"Cocoa Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Cocoa"],d:"Grows cocoa."},
+{n:"Coffee Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Coffee"],d:"Grows coffee."},
+{n:"Computation Mainframe Factory",c:"High Tech",i:["Processor","Power Unit","Microchip","Display","Wires"],o:["Computation Mainframe"],d:"Produces computation mainframes."},
+{n:"Computer Component Factory",c:"Advanced",i:["Microchip","Wires","Plastic"],o:["Computer Components"],d:"Produces computer components."},
+{n:"Conductor Factory",c:"Advanced",i:["Zinc","Steel","Platinum","Gold","Energy Cell"],o:["Conductors"],d:"Conductors are used in many electrical and weapon factories."},
+{n:"Copper Mine",c:"Mine / Resource",i:[],o:["Copper"],d:"Extracts copper."},
+{n:"Corn Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Corn"],d:"Grows corn."},
+{n:"Crystal Farm",c:"Basic",i:[],o:["Crystals"],d:"Produces crystals; no recipe inputs listed in the common factory table."},
+{n:"Dairy Farm",c:"Farm / Ranch",i:["Cattle"],o:["Milk"],d:"Produces dairy goods."},
+{n:"Display Factory",c:"Advanced",i:["Plastic","Wires","Glass"],o:["Displays"],d:"Produces displays."},
+{n:"Distillery",c:"Low Tech",i:["Corn","Potato","Water"],o:["Alcohol"],d:"Produces distilled trade goods; exact recipe can vary."},
+{n:"Drill Factory",c:"High Tech",i:["Laser Head","Processor","Steel","Diamonds"],o:["Drill","Scrap Metal"],d:"Produces drills and may generate scrap metal."},
+{n:"Drone Factory",c:"High Tech",i:["Microchip","Power Unit","Steel"],o:["Drones"],d:"Produces drones."},
+{n:"Electro Magnet Factory",c:"Advanced",i:["Conductor","Steel","Transformator"],o:["Electro Magnets"],d:"Produces electromagnets."},
+{n:"Electromagnetic Charge Factory",c:"Advanced",i:["Energy Container","Electro Magnet","Energy Tube","Transformator"],o:["Electromagnetic Charges"],d:"Produces electromagnetic charges."},
+{n:"Energy Container Factory",c:"Advanced",i:["Energy Cell","Transformator"],o:["Energy Containers"],d:"Produces energy containers."},
+{n:"Energy Generator Factory",c:"Advanced",i:["Energy Cell","Microchip","Conductor"],o:["Energy Generator"],d:"Produces energy generators."},
+{n:"Energy Inverter Factory",c:"Advanced",i:["Transformator","Energy Cell","Conductor"],o:["Energy Inverter"],d:"Produces energy inverters."},
+{n:"Energy Tube Factory",c:"Advanced",i:["Plastic","Steel","Platinum","Neon","Steel Tube","Energy Cell"],o:["Energy Tube"],d:"Produces energy tubes."},
+{n:"Equipment Dock",c:"Service / Other",i:[],o:["Equipment and upgrades"],d:"Trading/service station for ship equipment."},
+{n:"Explosive Charge Factory",c:"Advanced",i:["Fluorine","Steel","Energy Cell","Plastic","Chemicals","Acid","Adhesive"],o:["Explosive Charges"],d:"Produces explosive charges."},
+{n:"Fabric Factory",c:"Low Tech",i:["Cotton","Wool"],o:["Fabric"],d:"Produces fabric."},
+{n:"Fertilizer Factory",c:"Low Tech",i:["Chemicals","Minerals","Energy Cell","Solvent"],o:["Fertilizer","Toxic Waste"],d:"One of the fertilizer recipes; optional ingredients can affect capacity."},
+{n:"Fish Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Fish"],d:"Produces fish."},
+{n:"Food Bar Factory",c:"Low Tech",i:["Food","Water"],o:["Food Bars"],d:"Produces food bars."},
+{n:"Food Factory",c:"Low Tech",i:["Vegetables","Meat","Water"],o:["Food"],d:"Produces food goods."},
+{n:"Force Generator Factory",c:"Advanced",i:["Power Unit","Conductor","Transformator"],o:["Force Generator"],d:"Produces force generators."},
+{n:"Fruit Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Fruit"],d:"Grows fruit."},
+{n:"Fuel Factory",c:"Low Tech",i:["Energy Cell","Oil","Nitrogen","Fluorine"],o:["Fuel","Toxic Waste"],d:"Produces fuel and may generate toxic waste."},
+{n:"Fungus Farm",c:"Farm / Ranch",i:["Water","Bio Gas","Energy Cell"],o:["Fungus"],d:"Grows fungus."},
+{n:"Fusion Core Factory",c:"Advanced",i:["Hydrogen","Gold","Plasma Cell","Transformator","Energy Tube"],o:["Fusion Cores"],d:"Produces fusion cores."},
+{n:"Fusion Generator Factory",c:"High Tech",i:["Fusion Core","Energy Generator","Conductor"],o:["Fusion Generators"],d:"Produces fusion generators."},
+{n:"Gas Collector",c:"Basic",i:[],o:["Helium","Hydrogen","Neon","Chlorine","Nitrogen","Fluorine","Oxygen"],d:"Collects gas resources; output combination depends on variant."},
+{n:"Gauss Rail Factory",c:"Advanced",i:["Energy Cell","Electro Magnet","Energy Tube","High Pressure Tube","Transformator"],o:["Gauss Rail"],d:"Produces gauss rails."},
+{n:"Glass Manufacturer",c:"Low Tech",i:["Ore","Crystals"],o:["Glass"],d:"Produces glass."},
+{n:"Gun Factory",c:"Advanced",i:["Steel","Ammunition","Aluminum","Plastic"],o:["Guns"],d:"Produces weapon trade goods."},
+{n:"High Capacity Lens Factory",c:"Low Tech",i:["Glass","Carbon","Plastic","Diamonds"],o:["High Capacity Lens"],d:"Produces high-capacity lenses."},
+{n:"High Pressure Tube Factory",c:"Advanced",i:["Steel","Aluminum","Carbon","Adhesive","Steel Tubes"],o:["High Pressure Tubes"],d:"Produces high-pressure tubes."},
+{n:"Ice Mine",c:"Mine / Resource",i:[],o:["Ice / Water"],d:"Extracts ice or water-related raw goods."},
+{n:"Jewelry Manufacturer",c:"Advanced",i:["Gold","Silver","Diamonds"],o:["Jewelry"],d:"Produces jewelry."},
+{n:"Laser Compressor Factory",c:"Advanced",i:["Energy Tube","Transformator","Conductor"],o:["Laser Compressor"],d:"Produces laser compressors."},
+{n:"Laser Head Factory",c:"Advanced",i:["Steel","Microchip","Glass"],o:["Laser Head"],d:"Produces laser heads."},
+{n:"Laser Modulator Factory",c:"Advanced",i:["Energy Tube","Transformator","Microchip"],o:["Laser Modulator"],d:"Produces laser modulators."},
+{n:"Lead Mine",c:"Mine / Resource",i:[],o:["Lead"],d:"Extracts lead."},
+{n:"Luxury Food Factory",c:"Advanced",i:["Food","Spices","Fruit"],o:["Luxury Food"],d:"Produces luxury food."},
+{n:"Meat Factory",c:"Low Tech",i:["Cattle"],o:["Meat"],d:"Processes cattle into meat."},
+{n:"Medical Supplies Factory",c:"Advanced",i:["Chemicals","Plastic","Glass"],o:["Medical Supplies"],d:"Produces medical supplies."},
+{n:"Metal Plate Factory",c:"Advanced",i:["Steel","Silver"],o:["Metal Plates"],d:"Produces metal plates."},
+{n:"Microchip Factory",c:"Advanced",i:["Wires","Semi Conductors","Energy Cell"],o:["Microchips"],d:"Produces microchips."},
+{n:"Mineral Extractor",c:"Basic",i:[],o:["Minerals"],d:"Extracts mineral goods."},
+{n:"Mining Robot Factory",c:"High Tech",i:["Power Unit","Processor","Display","Nanobots","Drill","Coolant","Teleporter"],o:["Mining Robot","Scrap Metal"],d:"Produces mining robots and may generate scrap metal."},
+{n:"Nanobot Factory",c:"High Tech",i:["Microchip","Chemicals","Power Unit"],o:["Nanobots"],d:"Produces nanobots."},
+{n:"Noble Metal Mine",c:"Mine / Resource",i:[],o:["Gold","Silver","Platinum"],d:"Produces noble metals; available output varies."},
+{n:"Oil Refinery",c:"Low Tech",i:["Oil"],o:["Fuel","Plastic"],d:"Processes oil into industrial goods; recipe varies by station."},
+{n:"Oil Rig",c:"Mine / Resource",i:[],o:["Oil"],d:"Extracts oil."},
+{n:"Paint Manufacturer",c:"Advanced",i:["Oil","Water","Chemicals","Solvent","Acid"],o:["Paint","Toxic Waste"],d:"Produces paint and may generate toxic waste."},
+{n:"Paper Factory",c:"Low Tech",i:["Wood","Water"],o:["Paper"],d:"Produces paper."},
+{n:"Plankton Collector",c:"Basic",i:[],o:["Plankton"],d:"Collects plankton."},
+{n:"Plant Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Plants"],d:"Grows plants."},
+{n:"Plasma Cell Factory",c:"Advanced",i:["Energy Cell","Steel","Bio Gas","Neon","Helium"],o:["Plasma Cells"],d:"Produces plasma cells."},
+{n:"Plastic Manufacturer",c:"Low Tech",i:["Oil","Energy Cell"],o:["Plastic"],d:"Produces plastic."},
+{n:"Potato Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Potatoes"],d:"Grows potatoes."},
+{n:"Power Unit Factory",c:"Advanced",i:["Transformator","Energy Cell","Plasma Cell"],o:["Power Units"],d:"Produces power units."},
+{n:"Processor Factory",c:"High Tech",i:["Microchip","Conductors","Energy Cell"],o:["Processors"],d:"Produces processors."},
+{n:"Protein Factory",c:"Low Tech",i:["Meat","Plants"],o:["Protein"],d:"Produces protein goods."},
+{n:"Repair Dock",c:"Service / Other",i:[],o:["Ship repair"],d:"Repairs ships."},
+{n:"Research Station",c:"Service / Other",i:[],o:["Research service"],d:"Combines equipment for research."},
+{n:"Resource Depot",c:"Service / Other",i:[],o:["Resource trading"],d:"Trades resources and materials."},
+{n:"Rice Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Rice"],d:"Grows rice."},
+{n:"Rocket Factory",c:"Advanced",i:["Warhead","Fuel","Steel","Microchip"],o:["Rocket"],d:"Produces rockets."},
+{n:"Rubber Factory",c:"Low Tech",i:["Oil","Chemicals"],o:["Rubber"],d:"Produces rubber."},
+{n:"Satellite Factory",c:"Advanced",i:["Microchip","Steel","Energy Cell"],o:["Satellite"],d:"Produces satellites."},
+{n:"Scrap Metal Trader",c:"Basic",i:[],o:["Scrap Metal"],d:"Produces or trades scrap metal."},
+{n:"Scrapyard",c:"Service / Other",i:[],o:["Salvage / scrap"],d:"Salvage-related station."},
+{n:"Semi Conductor Manufacturer",c:"Advanced",i:["Steel","Silicon","Gold","Energy Cell"],o:["Semi Conductors"],d:"Produces semiconductors."},
+{n:"Servo Factory",c:"Advanced",i:["Steel","Plastic","Conductor"],o:["Servos"],d:"Produces servo components."},
+{n:"Sheep Ranch",c:"Farm / Ranch",i:[],o:["Wool"],d:"Produces wool."},
+{n:"Shipyard",c:"Service / Other",i:[],o:["Ship building"],d:"Builds ships and station founders."},
+{n:"Silicium Mine",c:"Mine / Resource",i:[],o:["Silicon"],d:"Extracts silicon."},
+{n:"Solar Cell Factory",c:"Low Tech",i:["Zinc","Silicon","Platinum","Gold","Energy Cell"],o:["Solar Cells"],d:"Produces solar cells."},
+{n:"Solar Panel Factory",c:"Advanced",i:["Solar Cells","Transformator"],o:["Solar Panel"],d:"Produces solar panels."},
+{n:"Solar Power Plant",c:"Service / Other",i:[],o:["Energy Cells"],d:"Produces energy cells."},
+{n:"Spices Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Spices"],d:"Grows spices."},
+{n:"Steel Factory",c:"Low Tech",i:["Ore","Coal","Carbon"],o:["Steel"],d:"Smelts ore into steel; alternate scrap-metal recipe exists."},
+{n:"Steel Tube Factory",c:"Low Tech",i:["Steel"],o:["Steel Tubes"],d:"Produces steel tubes."},
+{n:"Targeting Card Factory",c:"Advanced",i:["Microchip","Copper","Processors"],o:["Targeting Cards"],d:"Produces targeting cards."},
+{n:"Targeting System Factory",c:"High Tech",i:["Targeting Card","Processor","Energy Cell","Conductor","Wires"],o:["Targeting System"],d:"Produces targeting systems."},
+{n:"Tea Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Tea"],d:"Grows tea."},
+{n:"Teleporter Factory",c:"High Tech",i:["Metal Plate","Power Unit","Antigrav Unit","Plasma Cell","Conductor","Transformator"],o:["Teleporter","Scrap Metal"],d:"Produces teleporters."},
+{n:"Tesla Coil Factory",c:"Advanced",i:["Conductor","Energy Tube","Transformator"],o:["Tesla Coil"],d:"Produces Tesla coil goods."},
+{n:"Tools Factory",c:"Advanced",i:["Steel","Platinum","Silver","Aluminum","Energy Cell"],o:["Tools"],d:"Produces tools."},
+{n:"Transformator Factory",c:"Advanced",i:["Steel","Plastic","Silicon","Silver","Energy Cell"],o:["Transformators"],d:"Important intermediate component used by many advanced factories."},
+{n:"Travel Hub",c:"Service / Other",i:[],o:["Travel services"],d:"Travel-related station."},
+{n:"Turbine Factory",c:"Advanced",i:["Steel","Energy Tube","Conductor"],o:["Turbines"],d:"Produces turbines."},
+{n:"Vegetable Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Vegetables"],d:"Grows vegetables."},
+{n:"Vehicle Factory",c:"High Tech",i:["Rubber","Power Unit","Energy Generator","Metal Plates","Antigrav Unit","Display"],o:["Vehicle","Scrap Metal"],d:"Produces vehicles."},
+{n:"War Robot Factory",c:"High Tech",i:["Power Unit","Processor","Steel","Nanobots"],o:["War Robot"],d:"Produces war robots."},
+{n:"Warhead Factory",c:"Advanced",i:["Steel","Chemicals","Explosive Charges"],o:["Warhead"],d:"Produces warheads."},
+{n:"Water Collector",c:"Basic",i:[],o:["Water"],d:"Collects water."},
+{n:"Wheat Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Wheat"],d:"Grows wheat."},
+{n:"Wine Factory",c:"Low Tech",i:["Fruit","Water"],o:["Wine"],d:"Produces wine."},
+{n:"Wire Manufacturer",c:"Advanced",i:["Plastic","Steel","Gold"],o:["Wires"],d:"Produces wires."},
+{n:"Wood Farm",c:"Farm / Ranch",i:["Water","Energy Cell"],o:["Wood"],d:"Produces wood."},
+{n:"Zinc Mine",c:"Mine / Resource",i:[],o:["Zinc"],d:"Extracts zinc."},
+{n:"Equipment Dock",c:"Service / Other",i:[],o:["Turrets","Subsystems","Equipment"],d:"Sells equipment, upgrades and turrets depending on faction and reputation."},
+{n:"Trading Post",c:"Service / Other",i:[],o:["Trading services"],d:"General goods trading station."},
+{n:"Military Outpost",c:"Service / Other",i:[],o:["Military missions / supplies"],d:"Military-oriented services and missions."},
+{n:"Habitat",c:"Service / Other",i:[],o:["Crew / habitation"],d:"Provides habitation-related services."},
+{n:"Smuggler Hideout",c:"Service / Other",i:[],o:["Smuggling services"],d:"Smuggling-related station."},
+{n:"Factory (generic)",c:"Service / Other",i:[],o:["Trade goods"],d:"Generic category for stations producing trade goods."}
+];
+const allGoods = [...new Set(D.flatMap(x=>[...x.i,...x.o]).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+let mode="stations";
+const $=id=>document.getElementById(id);
+$("totalCount").textContent=D.length;
+$("factoryCount").textContent=D.filter(x=>!["Mine / Resource","Service / Other"].includes(x.c)).length;
+$("mineCount").textContent=D.filter(x=>x.c==="Mine / Resource").length;
+$("goodsCount").textContent=allGoods.length;
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function tag(c){let cl=c==="High Tech"?"gold":c==="Mine / Resource"?"green":"";return `<span class="tag ${cl}">${esc(c)}</span>`}
+function filtered(){
+ const q=$("search").value.toLowerCase().trim(),cat=$("category").value,sort=$("sort").value;
+ let list=D.filter(x=>(cat==="all"||x.c===cat)&&(!q||[x.n,x.c,x.d,...x.i,...x.o].join(" ").toLowerCase().includes(q)));
+ if(sort==="category")list.sort((a,b)=>a.c.localeCompare(b.c)||a.n.localeCompare(b.n));
+ else if(sort==="output")list.sort((a,b)=>(a.o[0]||"").localeCompare(b.o[0]||""));
+ else list.sort((a,b)=>a.n.localeCompare(b.n));
+ return list;
+}
+function card(title,sub,meta,click,extra=""){
+ return `<article class="item" tabindex="0" role="button" onclick="${click}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${click}}"><div>${meta}</div><h3>${esc(title)}</h3><p>${esc(sub)}</p>${extra}</article>`;
+}
+function render(){
+ const q=$("search").value.toLowerCase().trim();let html="";
+ if(mode==="stations"){
+  $("resultsTitle").textContent="Station directory";
+  const list=filtered();$("resultCount").textContent=`${list.length} entries`;
+  html=list.map((x)=>card(x.n,x.d,tag(x.c)+`<span class="tag">${x.i.length} input types</span>`,`showStation(${D.indexOf(x)})`,`<p><b style="color:var(--green)">Produces:</b> ${esc(x.o.join(", "))}</p>`)).join("");
+ } else if(mode==="goods"){
+  $("resultsTitle").textContent="Materials & goods";
+  const goods=allGoods.filter(g=>!q||g.toLowerCase().includes(q)||D.some(x=>x.n.toLowerCase().includes(q)&&([...x.i,...x.o].includes(g))));
+  $("resultCount").textContent=`${goods.length} goods`;
+  html=goods.map(g=>{
+   const makers=D.filter(x=>x.o.includes(g)),users=D.filter(x=>x.i.includes(g));
+   return card(g,`Produced by ${makers.length} station type(s); used by ${users.length} station type(s)`, `<span class="tag">Trade good / material</span>`,`showGood('${esc(g).replace(/'/g,"\\'")}')`,`<p><b style="color:var(--green)">Producers:</b> ${esc(makers.slice(0,3).map(x=>x.n).join(", ")||"Not listed")}${makers.length>3?"…":""}</p>`);
+  }).join("");
+ } else {
+  $("resultsTitle").textContent="Production chains";
+  const chains=["Ore → Steel → Steel Tubes / Metal Plates","Oil → Plastic → Wires / Energy Tubes / Transformator components","Silicon + Steel + Gold → Semi Conductors → Microchips → Processors","Energy Cells + Transformators → Energy Containers / Power Units","Steel + Plastic + Gold → Wires → Microchips / Targeting Systems","Plasma Cells + Transformators + Energy Tubes → Fusion Cores","Conductors + Electro Magnets + Energy Tubes → Gauss Rails","Water + Energy Cells → farm goods → food / drink factories","Cattle → Meat / Dairy / Bio Gas → food and chemical production","Chemicals + Solvent + Acid + Oil → Paint / Explosives / industrial goods","Power Units + Processors + specialist components → high-tech goods","Energy Cells → Solar Cell Factory → Solar Panel Factory"];
+  const chainData=[
+   ["Ore","Steel","Steel Tubes","Metal Plates"],["Oil","Plastic","Wires","Energy Tubes","Transformators"],["Silicon","Semi Conductors","Microchips","Processors"],["Energy Cells","Transformators","Energy Containers","Power Units"],["Steel","Wires","Microchips","Targeting Systems"],["Plasma Cells","Transformators","Energy Tubes","Fusion Cores"],["Conductors","Electro Magnets","Energy Tubes","Gauss Rail"],["Water","Energy Cells","Vegetables","Food"],["Cattle","Meat","Milk","Bio Gas"],["Chemicals","Solvent","Acid","Paint","Explosive Charges"],["Power Units","Processors","Antigrav Units","Teleporters"],["Silicon","Solar Cells","Transformators","Solar Panels"]
+  ];
+  const entries=chains.map((s,i)=>({s,goods:chainData[i]})).filter(x=>!q||(x.s+" "+x.goods.join(" ")).toLowerCase().includes(q));
+  $("resultCount").textContent=`${entries.length} chain overviews`;
+  html=entries.map((x,i)=>`<article class="item"><span class="tag gold">CHAIN ${String(i+1).padStart(2,"0")}</span><h3>${esc(x.s)}</h3><p>Tap a good to inspect producers and consumers.</p><div class="chips">${x.goods.map(g=>`<button class="chip" onclick="showGood('${esc(g).replace(/'/g,"\\'")}')">${esc(g)}</button>`).join("")}</div></article>`).join("");
+ }
+ $("results").innerHTML=html||'<div class="empty" style="grid-column:1/-1">No matching entries. Try another search or category.</div>';
+}
+function showStation(i){
+ const x=D[i];if(!x)return;
+ $("detailTags").innerHTML=tag(x.c);$("detailTitle").textContent=x.n;$("detailDesc").textContent=x.d;
+ $("detailInputs").innerHTML=x.i.length?x.i.map(g=>`<button class="chip" onclick="showGood('${esc(g).replace(/'/g,"\\'")}')">${esc(g)}</button>`).join(""):'<span class="muted">No listed inputs (raw-resource or self-contained production).</span>';
+ $("detailOutputs").innerHTML=x.o.map(g=>`<button class="chip" onclick="showGood('${esc(g).replace(/'/g,"\\'")}')">${esc(g)}</button>`).join("");
+ const makers=x.i.map(g=>({g,st:D.filter(y=>y.o.includes(g))})).filter(v=>v.st.length);
+ const consumers=x.o.map(g=>({g,st:D.filter(y=>y.i.includes(g))})).filter(v=>v.st.length);
+ $("detailLinks").innerHTML=`<h4>Where inputs can come from</h4>${makers.length?makers.map(v=>`<p><b>${esc(v.g)}:</b> ${v.st.map(y=>`<button class="chip" onclick="showStation(${D.indexOf(y)})">${esc(y.n)}</button>`).join(" ")}</p>`).join(""):'<p class="muted">No producer match in this directory; may be a raw good or purchased from traders.</p>'}<h4>Who uses the outputs</h4>${consumers.length?consumers.map(v=>`<p><b>${esc(v.g)}:</b> ${v.st.map(y=>`<button class="chip" onclick="showStation(${D.indexOf(y)})">${esc(y.n)}</button>`).join(" ")}</p>`).join(""):'<p class="muted">No consumer match in this directory.</p>'}`;
+ $("detail").classList.add("open");
+}
+function showGood(g){
+ const makers=D.filter(x=>x.o.includes(g)),users=D.filter(x=>x.i.includes(g));
+ $("detailTags").innerHTML='<span class="tag">MATERIAL / GOOD</span>';$("detailTitle").textContent=g;
+ $("detailDesc").textContent="Material overview based on station input/output entries in this reference.";
+ $("detailInputs").innerHTML=makers.length?makers.map(x=>`<button class="chip" onclick="showStation(${D.indexOf(x)})">${esc(x.n)} <span style="color:var(--green)">makes it</span></button>`).join(""):'<span class="muted">No producer listed in this directory; it may be sourced from traders, mines, or another variant.</span>';
+ $("detailOutputs").innerHTML=users.length?users.map(x=>`<button class="chip" onclick="showStation(${D.indexOf(x)})">${esc(x.n)} <span style="color:var(--gold)">uses it</span></button>`).join(""):'<span class="muted">No consumer listed in this directory.</span>';
+ $("detailLinks").innerHTML=`<p><b>Producer station types:</b> ${makers.length}</p><p><b>Consumer station types:</b> ${users.length}</p><p class="muted">Click a station above to open its inputs and outputs.</p>`;
+ $("detail").classList.add("open");
+}
+$("close").onclick=()=>$("detail").classList.remove("open");
+$("detail").addEventListener("click",e=>{if(e.target===$("detail"))$("detail").classList.remove("open")});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("detail").classList.remove("open")});
+$("search").addEventListener("input",render);$("category").addEventListener("change",render);$("sort").addEventListener("change",render);
+document.querySelectorAll("#tabs button").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.mode;document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("active",x===b));$("category").disabled=mode!=="stations";$("sort").disabled=mode!=="stations";render()}));
+render();
+</script>
+</body></html>
